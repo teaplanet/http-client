@@ -1,22 +1,20 @@
 package com.github.teaplanet.http
 
-import org.apache.http.impl.client.DefaultHttpClient
+import org.apache.http.impl.client.{DefaultRedirectStrategy, DefaultHttpClient}
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.{NameValuePair, HttpVersion, HttpResponse}
 import org.apache.http.params.{CoreProtocolPNames, HttpProtocolParams}
 import org.apache.http.client.utils.URLEncodedUtils
 import org.apache.http.message.BasicNameValuePair
-import org.apache.http.impl.conn.ProxySelectorRoutePlanner
+import org.apache.http.impl.conn.{PoolingClientConnectionManager, ProxySelectorRoutePlanner}
 import org.apache.http.client.params.ClientPNames
 import java.net.ProxySelector
+import java.nio.charset.{CodingErrorAction, Charset}
 import io.Source
 import scala.collection.JavaConversions._
 
 /**
  * Http client.
- *
- * Author: Ken
- * Date: 2012-07-05 0:36
  */
 
 object Http {
@@ -35,19 +33,16 @@ object Http {
 
 case class Http() {
 
-	val client = new DefaultHttpClient
-	val httpParams = client.getParams
+	val client = new DefaultHttpClient(new PoolingClientConnectionManager)
+	private val httpParams = client.getParams
 
-	this.init()
+	client.setRoutePlanner(new ProxySelectorRoutePlanner(
+		client.getConnectionManager.getSchemeRegistry, ProxySelector.getDefault))
 
-	private def init():Unit = {
-		client.setRoutePlanner(new ProxySelectorRoutePlanner(
-			client.getConnectionManager.getSchemeRegistry, ProxySelector.getDefault))
-		redirect()
-	}
+	client.setRedirectStrategy(new DefaultRedirectStrategy)
 
-	def redirect(auto:Boolean=true):Http = {
-		httpParams.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, !auto)
+	def redirect(handle:Boolean=true):Http = {
+		httpParams.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, handle)
 		this
 	}
 
@@ -90,7 +85,7 @@ case class Http() {
 		res
 	}
 
-	def close():Unit = client.getConnectionManager.shutdown()
+	def close() { client.getConnectionManager.shutdown() }
 
 }
 
@@ -100,7 +95,10 @@ case class Response(httpResponse:HttpResponse) {
 
 	def bodyAsString:Option[String] = httpResponse.getEntity match {
 		case null => None
-		case entity => Some(Source.fromInputStream(entity.getContent).getLines().mkString)
+		case entity =>
+			val decorder = Charset.forName(Http.UTF_8).newDecoder()
+			decorder.onMalformedInput(CodingErrorAction.IGNORE)
+			Some(Source.fromInputStream(entity.getContent)(decorder).getLines().mkString("\n"))
 	}
 
 	def headers:Map[String, String] = (httpResponse.getAllHeaders.map { header =>
