@@ -1,6 +1,7 @@
 package com.github.teaplanet.http
 
 import org.specs2.mutable._
+import xml.Elem
 
 /**
  * Http client spec.
@@ -48,6 +49,15 @@ class HttpSpec extends Specification {
 
 			val body = res.bodyAsString
 			body must beSome[String].which(_.contains(UserAgent.CHROME_20))
+		}
+	}
+
+	"HTTP response" should {
+		"response is xml" in {
+			val tenkiTokyo = "http://feed.tenki.jp/component/static_api/rss/warn/pref_16.xml"
+			val res = Http.get(tenkiTokyo)
+			res.statusCode must_== 200
+			res.bodyAsXML must beSome[Elem]
 		}
 	}
 

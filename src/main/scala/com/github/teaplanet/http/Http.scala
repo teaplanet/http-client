@@ -12,6 +12,8 @@ import java.net.ProxySelector
 import java.nio.charset.{CodingErrorAction, Charset}
 import io.Source
 import scala.collection.JavaConversions._
+import xml.{XML, Elem}
+import java.io.InputStream
 
 /**
  * Http client.
@@ -93,12 +95,19 @@ case class Response(httpResponse:HttpResponse) {
 
 	def statusCode:Int = httpResponse.getStatusLine.getStatusCode
 
+	def body:InputStream = httpResponse.getEntity.getContent
+
 	def bodyAsString:Option[String] = httpResponse.getEntity match {
 		case null => None
 		case entity =>
 			val decorder = Charset.forName(Http.UTF_8).newDecoder()
 			decorder.onMalformedInput(CodingErrorAction.IGNORE)
 			Some(Source.fromInputStream(entity.getContent)(decorder).getLines().mkString("\n"))
+	}
+
+	def bodyAsXML:Option[Elem] = httpResponse.getEntity match {
+		case null => None
+		case entity => Some(XML.load(entity.getContent))
 	}
 
 	def headers:Map[String, String] = (httpResponse.getAllHeaders.map { header =>
