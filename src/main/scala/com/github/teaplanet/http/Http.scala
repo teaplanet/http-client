@@ -3,7 +3,7 @@ package com.github.teaplanet.http
 import org.apache.http.impl.client.DefaultHttpClient
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.{NameValuePair, HttpVersion, HttpResponse}
-import org.apache.http.params.{BasicHttpParams, HttpProtocolParams}
+import org.apache.http.params.{CoreProtocolPNames, HttpProtocolParams}
 import org.apache.http.client.utils.URLEncodedUtils
 import org.apache.http.message.BasicNameValuePair
 import org.apache.http.impl.conn.ProxySelectorRoutePlanner
@@ -36,7 +36,7 @@ object Http {
 case class Http() {
 
 	val client = new DefaultHttpClient
-	val params = new BasicHttpParams
+	val httpParams = client.getParams
 
 	this.init()
 
@@ -44,21 +44,21 @@ case class Http() {
 		client.setRoutePlanner(new ProxySelectorRoutePlanner(
 			client.getConnectionManager.getSchemeRegistry, ProxySelector.getDefault))
 		redirect()
-		version()
 	}
 
-	def redirect(enabled:Boolean=true):Http = {
-		params.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, enabled)
+	def redirect(auto:Boolean=true):Http = {
+		httpParams.setBooleanParameter(ClientPNames.HANDLE_REDIRECTS, !auto)
 		this
 	}
 
 	def version(ver:HttpVersion=Http.VERSION_1_1):Http = {
-		HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1)
+		HttpProtocolParams.setVersion(httpParams, HttpVersion.HTTP_1_1)
 		this
 	}
 
 	def userAgent(name:String=UserAgent.HTTP_COMPONENTS):Http = {
-		HttpProtocolParams.setUserAgent(params, name)
+		httpParams.setBooleanParameter(CoreProtocolPNames.USE_EXPECT_CONTINUE, true)
+		HttpProtocolParams.setUserAgent(httpParams, name)
 		this
 	}
 
